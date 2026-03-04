@@ -28,8 +28,9 @@ npx trailbox-mvp dev
 `init` does:
 - creates `.trailbox-mvp/config.json`
 - creates `instrumentation.js` and `instrumentation-client.ts` if missing
-- safely integrates with existing `next.config.*` by creating `next.config.trailbox-mvp.*`
-- patches `next dev/build/start` scripts to use the wrapper config
+- creates `next.config.mjs` only when no `next.config.*` exists
+- keeps existing `next.config.*` unchanged for compatibility
+- removes old unsupported `--config next.config.trailbox-mvp.*` script flags if present
 - adds `.trailbox-mvp/` to `.gitignore`
 
 `dev` does:

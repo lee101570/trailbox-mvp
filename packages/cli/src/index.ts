@@ -172,13 +172,11 @@ function initCommand(): void {
     return;
   }
 
-  const wrapperFileName = writeNextWrapper(runtime.nextConfigFile, config.projectName);
-  const updatedScripts = patchPackageJsonNextScripts(runtime, wrapperFileName);
-  if (!updatedScripts) {
-    console.log(
-      `[trailbox-mvp] note: update your Next scripts to include "--config ${wrapperFileName}" if needed`
-    );
+  const repaired = removeUnsupportedConfigFlagFromScripts(runtime);
+  if (repaired) {
+    console.log('[trailbox-mvp] removed unsupported "--config next.config.trailbox-mvp.*" from Next scripts');
   }
+  console.log('[trailbox-mvp] existing next.config.* detected; left unchanged for compatibility');
 
   console.log('[trailbox-mvp] init complete');
 }
@@ -363,32 +361,7 @@ function resolveRuntimeEntry(packageEntry: string, fallbackPath: string): string
   }
 }
 
-function writeNextWrapper(existingConfigPath: string, projectName: string): string {
-  const baseName = basename(existingConfigPath);
-  const ext = extname(baseName).toLowerCase();
-  const wrapperExt = ext === '.ts' ? '.ts' : '.mjs';
-  const wrapperFileName = `next.config.trailbox-mvp${wrapperExt}`;
-  const wrapperPath = join(PROJECT_ROOT, wrapperFileName);
-
-  const wrapperBody = [
-    `import withTrailboxMvp from 'trailbox-mvp-sdk-next/with-next';`,
-    `import baseConfig from './${baseName}';`,
-    '',
-    'const withTrailboxConfig = withTrailboxMvp({',
-    `  appName: process.env.npm_package_name || '${escapeLiteral(projectName)}',`,
-    `  endpoint: process.env.TRAILBOX_MVP_ENDPOINT || 'http://127.0.0.1:7465/ingest',`,
-    '});',
-    '',
-    'export default withTrailboxConfig(baseConfig || {});',
-    '',
-  ].join('\n');
-
-  writeFileSync(wrapperPath, wrapperBody, 'utf8');
-  console.log(`[trailbox-mvp] wrote ${wrapperPath}`);
-  return wrapperFileName;
-}
-
-function patchPackageJsonNextScripts(runtime: ProjectRuntime, wrapperFileName: string): boolean {
+function removeUnsupportedConfigFlagFromScripts(runtime: ProjectRuntime): boolean {
   if (!runtime.packageJsonPath || !runtime.packageJson) {
     return false;
   }
@@ -402,18 +375,12 @@ function patchPackageJsonNextScripts(runtime: ProjectRuntime, wrapperFileName: s
     if (!/\bnext\s+(dev|build|start)\b/.test(script)) {
       continue;
     }
-    if (new RegExp(`--config\\s+${escapeRegExp(wrapperFileName)}`).test(script)) {
-      continue;
-    }
-    if (/\b--config\b/.test(script)) {
-      continue;
-    }
-    const nextPatched = script.replace(
-      /\bnext\s+(dev|build|start)\b/g,
-      (full) => `${full} --config ${wrapperFileName}`
-    );
-    if (nextPatched !== script) {
-      pkg.scripts[name] = nextPatched;
+    const cleaned = script
+      .replace(/\s+--config\s+["']?next\.config\.trailbox-mvp\.(?:mjs|ts)["']?/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleaned !== script) {
+      pkg.scripts[name] = cleaned;
       changed = true;
       console.log(`[trailbox-mvp] patched package.json script "${name}"`);
     }
@@ -623,10 +590,6 @@ function normalizeHost(host: string): string {
     return '127.0.0.1';
   }
   return host;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function escapeLiteral(value: string): string {

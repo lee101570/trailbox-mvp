@@ -1,0 +1,19 @@
+{
+  "name": "@trailbox-mvp/dashboard",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Minimal dashboard for trailbox-mvp",
+  "main": "dist/server.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "public"
+  ],
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc -p tsconfig.json"
+  }
+}

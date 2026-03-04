@@ -1,0 +1,32 @@
+{
+  "name": "trailbox-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local error + network debugging platform (TypeScript skeleton)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm --workspace @trailbox-mvp/dashboard run dev",
+    "start:agent": "npm --workspace @trailbox-mvp/agent run dev",
+    "start:cli": "node ./packages/cli/dist/index.js",
+    "clean:dist": "powershell -NoProfile -Command \"Get-ChildItem -Path . -Recurse -Directory -Filter dist | Remove-Item -Recurse -Force\"",
+    "build:all": "npm run build:protocol && npm run build:storage && npm run build:sdk-core && npm run build:sdk-next && npm run build:agent && npm run build:dashboard && npm run build:cli",
+    "build:cli": "npm --workspace @trailbox-mvp/cli run build",
+    "build:agent": "npm --workspace @trailbox-mvp/agent run build",
+    "build:dashboard": "npm --workspace @trailbox-mvp/dashboard run build",
+    "build:sdk-core": "npm --workspace @trailbox-mvp/sdk-core run build",
+    "build:sdk-next": "npm --workspace @trailbox-mvp/sdk-next run build",
+    "build:protocol": "npm --workspace @trailbox-mvp/protocol run build",
+    "build:storage": "npm --workspace @trailbox-mvp/storage run build",
+    "release:publish": "node ./scripts/release/publish-npm.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "npm-run-all": "^4.1.5",
+    "tsx": "^4.15.0",
+    "typescript": "^5.4.5"
+  }
+}

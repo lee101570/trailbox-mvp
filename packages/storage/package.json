@@ -1,0 +1,19 @@
+{
+  "name": "@trailbox-mvp/storage",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "JSONL-based local storage for trailbox-mvp",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts"
+  }
+}

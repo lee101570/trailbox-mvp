@@ -1,0 +1,61 @@
+:root {
+  --bg: #f7f7fb;
+  --panel: #ffffff;
+  --line: #d8dce6;
+  --text: #11131a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, -apple-system, system-ui, 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at 15% 0%, #ecf1ff, var(--bg) 45%);
+  color: var(--text);
+}
+
+.container {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+h1 {
+  margin: 0.25rem 0 1.5rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #5e6680;
+}
+
+#eventList {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+#eventList li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  margin-bottom: 0.5rem;
+  background: var(--panel);
+}
+
+.status {
+  margin-left: 0.75rem;
+  color: #3d4354;
+}
+
+button {
+  border: none;
+  background: #1d4ed8;
+  color: #fff;
+  padding: 0.45rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+

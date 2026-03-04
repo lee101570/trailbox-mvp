@@ -1,0 +1,22 @@
+{
+  "name": "@trailbox-mvp/sdk-core",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Core browser instrumentation for trailbox-mvp",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@trailbox-mvp/protocol": "0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts"
+  }
+}

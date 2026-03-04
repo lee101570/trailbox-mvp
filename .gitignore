@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.trailbox/
+.trailbox-mvp/
+.DS_Store
+*.log
+
+work/

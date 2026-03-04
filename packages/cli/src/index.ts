@@ -143,10 +143,13 @@ function initCommand(): void {
     join(templateDir, 'instrumentation.js'),
     join(PROJECT_ROOT, 'instrumentation.js')
   );
-  writeFromTemplate(
-    join(templateDir, 'instrumentation-client.ts'),
-    join(PROJECT_ROOT, 'instrumentation-client.ts')
-  );
+  const clientTemplatePath = join(templateDir, 'instrumentation-client.ts');
+  const existingClientFile = findInstrumentationClientFile(PROJECT_ROOT);
+  if (existingClientFile) {
+    ensureTrailboxClientIntegration(existingClientFile);
+  } else {
+    writeFromTemplate(clientTemplatePath, join(PROJECT_ROOT, 'instrumentation-client.ts'));
+  }
 
   if (!runtime.isNextProject) {
     console.log('[trailbox-mvp] init complete (non-Next project detected; config files generated only)');
@@ -359,6 +362,60 @@ function resolveRuntimeEntry(packageEntry: string, fallbackPath: string): string
   } catch {
     return fallbackPath;
   }
+}
+
+function findInstrumentationClientFile(projectRoot: string): string | null {
+  const candidates = [
+    'instrumentation-client.ts',
+    'instrumentation-client.tsx',
+    'instrumentation-client.js',
+    'instrumentation-client.mjs',
+    'src/instrumentation-client.ts',
+    'src/instrumentation-client.tsx',
+    'src/instrumentation-client.js',
+    'src/instrumentation-client.mjs',
+  ];
+  for (const rel of candidates) {
+    const full = join(projectRoot, rel);
+    if (existsSync(full)) {
+      return full;
+    }
+  }
+  return null;
+}
+
+function ensureTrailboxClientIntegration(filePath: string): void {
+  const raw = readFileSync(filePath, 'utf8');
+  if (
+    raw.includes('trailbox-mvp-sdk-core')
+    || raw.includes('trailbox-mvp:start')
+    || raw.includes('initTrailboxMvp(')
+  ) {
+    console.log(`[trailbox-mvp] instrumentation client already integrated: ${filePath}`);
+    return;
+  }
+
+  const lineBreak = raw.includes('\r\n') ? '\r\n' : '\n';
+  const snippet = [
+    '',
+    '/* trailbox-mvp:start */',
+    "import('trailbox-mvp-sdk-core')",
+    '  .then(({ initTrailboxMvp }) => {',
+    '    initTrailboxMvp({',
+    "      endpoint: process.env.NEXT_PUBLIC_TRAILBOX_MVP_ENDPOINT || process.env.TRAILBOX_MVP_ENDPOINT || 'http://127.0.0.1:7465/ingest',",
+    "      appName: process.env.NEXT_PUBLIC_TRAILBOX_MVP_APP_NAME || process.env.npm_package_name || 'next-app',",
+    '      captureBodies: true,',
+    '      captureHeaders: true,',
+    '    });',
+    '  })',
+    '  .catch(() => undefined);',
+    '/* trailbox-mvp:end */',
+    '',
+  ].join(lineBreak);
+
+  const nextBody = raw.endsWith(lineBreak) ? `${raw}${snippet}` : `${raw}${lineBreak}${snippet}`;
+  writeFileSync(filePath, nextBody, 'utf8');
+  console.log(`[trailbox-mvp] merged trailbox client instrumentation into ${filePath}`);
 }
 
 function removeUnsupportedConfigFlagFromScripts(runtime: ProjectRuntime): boolean {

@@ -17,19 +17,36 @@ interface IngestPayload {
   [key: string]: unknown;
 }
 
-type HttpMethod = 'GET' | 'POST';
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Max-Age': '600',
+};
+
+function writeJson(res: ServerResponse, statusCode: number, payload: unknown): void {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    ...CORS_HEADERS,
+  });
+  res.end(JSON.stringify(payload));
+}
 
 const server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, CORS_HEADERS);
+    res.end();
+    return;
+  }
+
   if (req.method === 'GET' && req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ status: 'ok', port: PORT, service: 'trailbox-mvp-agent' }));
+    writeJson(res, 200, { status: 'ok', port: PORT, service: 'trailbox-mvp-agent' });
     return;
   }
 
   if (req.method === 'GET' && req.url === '/events') {
     const events = await store.list();
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify(events));
+    writeJson(res, 200, events);
     return;
   }
 
@@ -42,20 +59,16 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
       try {
         const payload = body ? (JSON.parse(body) as IngestPayload) : {};
         await store.append(payload);
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ status: 'ok' }));
+        writeJson(res, 200, { status: 'ok' });
       } catch {
         const error: ErrorPayload = { message: 'invalid json' };
-        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify(error));
+        writeJson(res, 400, error);
       }
     });
     return;
   }
 
-  const response = { status: 'not_found' };
-  res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-  res.end(JSON.stringify(response));
+  writeJson(res, 404, { status: 'not_found' });
 });
 
 server.listen(PORT, () => {

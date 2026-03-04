@@ -28,6 +28,7 @@ type XhrTrailboxState = {
   method: string;
   url: string;
   requestHeaders: Record<string, string>;
+  skipCapture?: boolean;
   requestBody?: string;
   requestBodyTruncated?: boolean;
 };
@@ -74,13 +75,18 @@ export function initTrailboxMvp({
     return;
   }
   window.__trailboxMvpInstalled = true;
+  const transportFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : undefined;
+  const ignoredUrls = createIgnoredUrlSet([endpoint]);
 
   const send = async (event: unknown): Promise<void> => {
     if (Math.random() > sampleRate) {
       return;
     }
+    if (!transportFetch) {
+      return;
+    }
     try {
-      await fetch(endpoint, {
+      await transportFetch(endpoint, {
         method: 'POST',
         mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
@@ -154,6 +160,7 @@ export function initTrailboxMvp({
       captureBodies,
       captureHeaders,
       maxBodyLength,
+      ignoredUrls,
     });
   }
 
@@ -163,13 +170,16 @@ export function initTrailboxMvp({
       captureBodies,
       captureHeaders,
       maxBodyLength,
+      ignoredUrls,
     });
   }
 }
 
 function patchFetch(
   capture: (type: string, severity: string, message: string, payload: Record<string, unknown>) => void,
-  opts: Required<Pick<TrailboxOptions, 'mask' | 'captureBodies' | 'captureHeaders' | 'maxBodyLength'>>
+  opts: Required<Pick<TrailboxOptions, 'mask' | 'captureBodies' | 'captureHeaders' | 'maxBodyLength'>> & {
+    ignoredUrls: ReadonlySet<string>;
+  }
 ): void {
   const originalFetch = window.fetch.bind(window);
 
@@ -178,11 +188,10 @@ function patchFetch(
     const input = args[0];
     const init = args[1] || {};
     const method = ((init as RequestInit).method || (isRequest(input) ? input.method : 'GET') || 'GET').toUpperCase();
-    const rawUrl = typeof input === 'string'
-      ? input
-      : input instanceof URL
-        ? input.toString()
-        : input.url;
+    const rawUrl = getRequestUrl(input);
+    if (shouldIgnoreUrl(rawUrl, opts.ignoredUrls)) {
+      return originalFetch(...args);
+    }
     const url = sanitizeUrl(rawUrl, opts.mask);
 
     const requestHeaders = opts.captureHeaders
@@ -245,7 +254,9 @@ function patchFetch(
 
 function patchXhr(
   capture: (type: string, severity: string, message: string, payload: Record<string, unknown>) => void,
-  opts: Required<Pick<TrailboxOptions, 'mask' | 'captureBodies' | 'captureHeaders' | 'maxBodyLength'>>
+  opts: Required<Pick<TrailboxOptions, 'mask' | 'captureBodies' | 'captureHeaders' | 'maxBodyLength'>> & {
+    ignoredUrls: ReadonlySet<string>;
+  }
 ): void {
   const originalOpen = window.XMLHttpRequest.prototype.open;
   const originalSend = window.XMLHttpRequest.prototype.send;
@@ -259,10 +270,12 @@ function patchXhr(
     user?: string | null,
     password?: string | null
   ): void {
+    const skipCapture = shouldIgnoreUrl(url, opts.ignoredUrls);
     this.__trailboxState = {
       method: String(method || 'GET').toUpperCase(),
       url: sanitizeUrl(url, opts.mask),
       requestHeaders: {},
+      skipCapture,
     };
     originalOpen.call(this, method, url, async ?? true, user || null, password || null);
   };
@@ -284,6 +297,10 @@ function patchXhr(
   ): void {
     const started = performance.now();
     const state = this.__trailboxState;
+    if (state?.skipCapture) {
+      originalSend.call(this, body);
+      return;
+    }
 
     if (state && opts.captureBodies) {
       const requestBody = serializeBody(body, opts.mask, opts.maxBodyLength);
@@ -463,6 +480,47 @@ function sanitizeUrl(rawUrl: string, mask: boolean): string {
       '$1=[REDACTED]'
     );
   }
+}
+
+function createIgnoredUrlSet(urls: string[]): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const rawUrl of urls) {
+    const comparable = toComparableUrl(rawUrl);
+    if (comparable) {
+      out.add(comparable);
+    }
+  }
+  return out;
+}
+
+function shouldIgnoreUrl(rawUrl: string, ignoredUrls: ReadonlySet<string>): boolean {
+  if (ignoredUrls.size === 0) {
+    return false;
+  }
+  const comparable = toComparableUrl(rawUrl);
+  if (!comparable) {
+    return false;
+  }
+  return ignoredUrls.has(comparable);
+}
+
+function toComparableUrl(rawUrl: string): string | undefined {
+  try {
+    const parsed = new URL(rawUrl, window.location.origin);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function getRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  return input.url;
 }
 
 function serializeBody(

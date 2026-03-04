@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import * as http from 'node:http';
-import { ChildProcess, spawn } from 'node:child_process';
+import { ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { createInterface } from 'node:readline/promises';
 
 type CliCommand = 'init' | 'dev' | 'doctor';
 type PackageManager = 'npm' | 'pnpm' | 'yarn';
@@ -37,6 +38,7 @@ const PROJECT_ROOT = process.cwd();
 const CONFIG_DIR = join(PROJECT_ROOT, '.trailbox-mvp');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 const require = createRequire(import.meta.url);
+const REQUIRED_TRAILBOX_PACKAGES = ['trailbox-mvp-sdk-next', 'trailbox-mvp-sdk-core'] as const;
 
 const defaultConfig = {
   version: '0.1.0',
@@ -55,11 +57,14 @@ if (!command || command === '--help') {
 }
 
 if (command === 'init') {
-  initCommand();
-  process.exit(0);
-}
-
-if (command === 'dev') {
+  void initCommand()
+    .then(() => process.exit(0))
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[trailbox-mvp] init failed: ${message}`);
+      process.exit(1);
+    });
+} else if (command === 'dev') {
   void devCommand();
 } else if (command === 'doctor') {
   void doctorCommand();
@@ -79,7 +84,9 @@ function printUsage(): void {
   if (args.includes('--help')) {
     console.log('');
     console.log(`Options:
-  --help  show usage`);
+  --help         show usage
+  --yes          install/update trailbox sdk packages without prompt (init only)
+  --skip-install skip trailbox sdk package install/update (init only)`);
   }
 }
 
@@ -133,7 +140,7 @@ function detectProjectRuntime(projectRoot: string): ProjectRuntime {
   };
 }
 
-function initCommand(): void {
+async function initCommand(): Promise<void> {
   const config = loadConfig();
   const runtime = detectProjectRuntime(PROJECT_ROOT);
   const templateDir = join(CLI_PACKAGE_ROOT, 'templates', 'next');
@@ -171,15 +178,15 @@ function initCommand(): void {
     const target = join(PROJECT_ROOT, 'next.config.mjs');
     writeFileSync(target, nextConfigBody, 'utf8');
     console.log(`[trailbox-mvp] wrote ${target}`);
-    console.log('[trailbox-mvp] init complete');
-    return;
+  } else {
+    const repaired = removeUnsupportedConfigFlagFromScripts(runtime);
+    if (repaired) {
+      console.log('[trailbox-mvp] removed unsupported "--config next.config.trailbox-mvp.*" from Next scripts');
+    }
+    console.log('[trailbox-mvp] existing next.config.* detected; left unchanged for compatibility');
   }
 
-  const repaired = removeUnsupportedConfigFlagFromScripts(runtime);
-  if (repaired) {
-    console.log('[trailbox-mvp] removed unsupported "--config next.config.trailbox-mvp.*" from Next scripts');
-  }
-  console.log('[trailbox-mvp] existing next.config.* detected; left unchanged for compatibility');
+  await maybeInstallOrUpdateTrailboxPackages(runtime);
 
   console.log('[trailbox-mvp] init complete');
 }
@@ -362,6 +369,118 @@ function resolveRuntimeEntry(packageEntry: string, fallbackPath: string): string
   } catch {
     return fallbackPath;
   }
+}
+
+async function maybeInstallOrUpdateTrailboxPackages(runtime: ProjectRuntime): Promise<void> {
+  if (!runtime.packageJsonPath || !runtime.packageJson) {
+    console.log('[trailbox-mvp] package.json not found; skipped sdk package install/update');
+    return;
+  }
+
+  if (args.includes('--skip-install') || args.includes('--no-install')) {
+    console.log('[trailbox-mvp] skipped sdk package install/update (--skip-install)');
+    return;
+  }
+
+  const specs = describeTrailboxPackageSpecs(runtime.packageJson);
+  const shouldInstall = args.includes('--yes')
+    ? true
+    : await promptForPackageInstall(specs, runtime.packageManager);
+
+  if (!shouldInstall) {
+    console.log('[trailbox-mvp] skipped sdk package install/update');
+    return;
+  }
+
+  const command = buildPackageInstallCommand(runtime.packageManager);
+  console.log(`[trailbox-mvp] running package update: ${command.command} ${command.args.join(' ')}`);
+
+  const result = spawnSync(command.command, command.args, {
+    cwd: runtime.projectRoot,
+    env: process.env,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+
+  if (result.status !== 0) {
+    console.log('[trailbox-mvp] package update failed. Run this manually:');
+    console.log(`  ${formatInstallCommand(runtime.packageManager)}`);
+    return;
+  }
+
+  console.log('[trailbox-mvp] sdk packages updated');
+}
+
+function describeTrailboxPackageSpecs(packageJson: PackageJson): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  for (const pkg of REQUIRED_TRAILBOX_PACKAGES) {
+    out[pkg] = readDependencySpec(packageJson, pkg);
+  }
+  return out;
+}
+
+function readDependencySpec(packageJson: PackageJson, packageName: string): string | null {
+  return packageJson.dependencies?.[packageName]
+    ?? packageJson.devDependencies?.[packageName]
+    ?? packageJson.peerDependencies?.[packageName]
+    ?? null;
+}
+
+async function promptForPackageInstall(
+  specs: Record<string, string | null>,
+  packageManager: PackageManager
+): Promise<boolean> {
+  console.log('[trailbox-mvp] trailbox sdk package status:');
+  for (const pkg of REQUIRED_TRAILBOX_PACKAGES) {
+    console.log(`  - ${pkg}: ${specs[pkg] ?? '(not installed)'}`);
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.log('[trailbox-mvp] non-interactive shell detected; skip prompt');
+    console.log(`[trailbox-mvp] run manually: ${formatInstallCommand(packageManager)}`);
+    return false;
+  }
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question('[trailbox-mvp] Install or update these packages to latest now? (Y/n): '))
+      .trim()
+      .toLowerCase();
+    if (!answer) {
+      return true;
+    }
+    if (answer === 'y' || answer === 'yes') {
+      return true;
+    }
+    if (answer === 'n' || answer === 'no') {
+      return false;
+    }
+    return true;
+  } finally {
+    rl.close();
+  }
+}
+
+function buildPackageInstallCommand(packageManager: PackageManager): { command: string; args: string[] } {
+  const packageSpecs = REQUIRED_TRAILBOX_PACKAGES.map((pkg) => `${pkg}@latest`);
+  if (packageManager === 'pnpm') {
+    return { command: 'pnpm', args: ['add', ...packageSpecs] };
+  }
+  if (packageManager === 'yarn') {
+    return { command: 'yarn', args: ['add', ...packageSpecs] };
+  }
+  return { command: 'npm', args: ['install', ...packageSpecs] };
+}
+
+function formatInstallCommand(packageManager: PackageManager): string {
+  const packageSpecs = REQUIRED_TRAILBOX_PACKAGES.map((pkg) => `${pkg}@latest`).join(' ');
+  if (packageManager === 'pnpm') {
+    return `pnpm add ${packageSpecs}`;
+  }
+  if (packageManager === 'yarn') {
+    return `yarn add ${packageSpecs}`;
+  }
+  return `npm install ${packageSpecs}`;
 }
 
 function findInstrumentationClientFile(projectRoot: string): string | null {

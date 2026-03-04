@@ -1,6 +1,6 @@
 {
   "name": "trailbox-mvp-agent",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "private": false,
   "type": "module",
   "description": "Local collector server for trailbox-mvp",
@@ -21,6 +21,6 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "trailbox-mvp-storage": "0.1.0"
+    "trailbox-mvp-storage": "0.1.2"
   }
 }

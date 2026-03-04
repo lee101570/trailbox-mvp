@@ -7,18 +7,81 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <main class="container">
-      <header>
-        <p class="eyebrow">Local Debug Console</p>
-        <h1>trailbox-mvp</h1>
+    <main class="layout">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local Debug Console</p>
+          <h1>trailbox-mvp</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="auto-refresh">
+            <input id="autoRefresh" type="checkbox" checked />
+            Auto Refresh
+          </label>
+          <button id="clearCurrent" type="button" class="btn-danger btn-secondary">Clear Current Tab</button>
+          <button id="clearAll" type="button" class="btn-danger">Clear All Logs</button>
+          <button id="refresh" type="button">Refresh</button>
+        </div>
       </header>
-      <section>
-        <button id="refresh">Refresh</button>
-        <span id="status" class="status">checking...</span>
+
+      <section class="status-row">
+        <span id="status" class="status">loading...</span>
       </section>
-      <ul id="eventList"></ul>
+
+      <nav id="tabs" class="tabs" aria-label="Trailbox event tabs">
+        <button type="button" class="tab is-active" data-tab="overview">Overview</button>
+        <button type="button" class="tab" data-tab="errors">Errors</button>
+        <button type="button" class="tab" data-tab="console">Console</button>
+        <button type="button" class="tab" data-tab="network">Network</button>
+      </nav>
+
+      <section id="panel-overview" class="panel is-active">
+        <div id="overviewStats" class="stat-grid"></div>
+        <div class="panel-card">
+          <h2>Recent Events</h2>
+          <ul id="overviewList" class="simple-list"></ul>
+          <div class="panel-actions">
+            <button id="overviewLoadMore" type="button">Load Older</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-errors" class="panel">
+        <div class="panel-card">
+          <h2>Errors</h2>
+          <ul id="errorsList" class="simple-list"></ul>
+          <div class="panel-actions">
+            <button id="errorsLoadMore" type="button">Load Older</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-console" class="panel">
+        <div class="panel-card">
+          <h2>Console</h2>
+          <ul id="consoleList" class="simple-list"></ul>
+          <div class="panel-actions">
+            <button id="consoleLoadMore" type="button">Load Older</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="panel-network" class="panel">
+        <div class="network-shell">
+          <div class="network-list-pane panel-card">
+            <h2>Network Requests</h2>
+            <div id="networkViewport" class="virtual-viewport">
+              <div id="networkSpacer" class="virtual-spacer"></div>
+              <div id="networkRows" class="virtual-rows"></div>
+            </div>
+            <div class="panel-actions">
+              <button id="networkLoadMore" type="button">Load Older</button>
+            </div>
+          </div>
+          <div id="networkDetail" class="network-detail-pane panel-card"></div>
+        </div>
+      </section>
     </main>
     <script src="/app.js"></script>
   </body>
 </html>
-

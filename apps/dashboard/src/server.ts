@@ -44,23 +44,24 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'GET' && url.pathname === '/api/events') {
-    const target = `${AGENT_URL}/events`;
-    const proxyReq = http.get(target, (agentRes) => {
-      let body = '';
-      agentRes.on('data', (chunk) => {
-        body += chunk.toString();
-      });
-      agentRes.on('end', () => {
-        res.writeHead(agentRes.statusCode ?? 500, {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store',
-          'Access-Control-Allow-Origin': '*',
-        });
-        res.end(body || JSON.stringify([]));
-      });
+    const target = createEventsUrl(url);
+    proxyJson({
+      method: 'GET',
+      target,
+      res,
+      fallbackPayload: [],
     });
-    proxyReq.on('error', () => {
-      sendJson(res, []);
+    return;
+  }
+
+  if (req.method === 'DELETE' && url.pathname === '/api/events') {
+    const target = createEventsUrl(url);
+    proxyJson({
+      method: 'DELETE',
+      target,
+      res,
+      fallbackPayload: { status: 'error', removed: 0, remaining: 0 },
+      fallbackStatusCode: 500,
     });
     return;
   }
@@ -78,3 +79,61 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`[trailbox-mvp-dashboard] listening http://127.0.0.1:${PORT}`);
 });
+
+function ensureBaseUrl(value: string): string {
+  return value.endsWith('/') ? value : `${value}/`;
+}
+
+function createEventsUrl(url: URL): URL {
+  const target = new URL('/events', ensureBaseUrl(AGENT_URL));
+  const type = url.searchParams.get('type');
+  const limit = url.searchParams.get('limit');
+  const before = url.searchParams.get('before');
+  const after = url.searchParams.get('after');
+  if (type) {
+    target.searchParams.set('type', type);
+  }
+  if (limit) {
+    target.searchParams.set('limit', limit);
+  }
+  if (before) {
+    target.searchParams.set('before', before);
+  }
+  if (after) {
+    target.searchParams.set('after', after);
+  }
+  return target;
+}
+
+function proxyJson({
+  method,
+  target,
+  res,
+  fallbackPayload,
+  fallbackStatusCode = 200,
+}: {
+  method: 'GET' | 'DELETE';
+  target: URL;
+  res: http.ServerResponse;
+  fallbackPayload: unknown;
+  fallbackStatusCode?: number;
+}): void {
+  const proxyReq = http.request(target, { method }, (agentRes) => {
+    let body = '';
+    agentRes.on('data', (chunk) => {
+      body += chunk.toString();
+    });
+    agentRes.on('end', () => {
+      res.writeHead(agentRes.statusCode ?? 500, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(body || JSON.stringify(fallbackPayload));
+    });
+  });
+  proxyReq.on('error', () => {
+    sendJson(res, fallbackPayload, fallbackStatusCode);
+  });
+  proxyReq.end();
+}

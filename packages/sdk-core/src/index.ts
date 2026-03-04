@@ -8,6 +8,9 @@ interface TrailboxOptions {
   captureBodies?: boolean;
   captureHeaders?: boolean;
   maxBodyLength?: number;
+  batchSize?: number;
+  flushIntervalMs?: number;
+  maxQueueSize?: number;
 }
 
 type NetworkPayload = {
@@ -70,6 +73,9 @@ export function initTrailboxMvp({
   captureBodies = true,
   captureHeaders = true,
   maxBodyLength = 10_000,
+  batchSize = 20,
+  flushIntervalMs = 1_000,
+  maxQueueSize = 2_000,
 }: TrailboxOptions = {}): void {
   if (typeof window === 'undefined' || window.__trailboxMvpInstalled) {
     return;
@@ -77,24 +83,90 @@ export function initTrailboxMvp({
   window.__trailboxMvpInstalled = true;
   const transportFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : undefined;
   const ignoredUrls = createIgnoredUrlSet([endpoint]);
+  const safeBatchSize = normalizePositiveInt(batchSize, 20, 200);
+  const safeFlushIntervalMs = normalizePositiveInt(flushIntervalMs, 1_000, 60_000);
+  const safeMaxQueueSize = normalizePositiveInt(maxQueueSize, 2_000, 20_000);
+  const eventQueue: Record<string, unknown>[] = [];
+  let flushTimerId: number | undefined;
+  let flushing = false;
 
-  const send = async (event: unknown): Promise<void> => {
+  const flush = async (): Promise<void> => {
+    if (!transportFetch || flushing || eventQueue.length === 0) {
+      return;
+    }
+    flushing = true;
+    try {
+      while (eventQueue.length > 0) {
+        const batch = eventQueue.splice(0, safeBatchSize);
+        try {
+          await transportFetch(endpoint, {
+            method: 'POST',
+            mode: 'cors',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(batch),
+          });
+        } catch {
+          eventQueue.unshift(...batch);
+          break;
+        }
+      }
+    } finally {
+      flushing = false;
+      if (eventQueue.length > 0) {
+        scheduleFlush();
+      }
+    }
+  };
+
+  const scheduleFlush = (): void => {
+    if (flushTimerId !== undefined) {
+      return;
+    }
+    flushTimerId = window.setTimeout(() => {
+      flushTimerId = undefined;
+      void flush();
+    }, safeFlushIntervalMs);
+  };
+
+  const flushWithBeacon = (): void => {
+    if (eventQueue.length === 0) {
+      return;
+    }
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const batch = eventQueue.splice(0, safeBatchSize);
+      try {
+        const payload = new Blob([JSON.stringify(batch)], { type: 'application/json' });
+        const sent = navigator.sendBeacon(endpoint, payload);
+        if (!sent) {
+          eventQueue.unshift(...batch);
+          void flush();
+        }
+      } catch {
+        eventQueue.unshift(...batch);
+      }
+    }
+    if (eventQueue.length > 0) {
+      void flush();
+    }
+  };
+
+  window.addEventListener('pagehide', flushWithBeacon);
+  window.addEventListener('beforeunload', flushWithBeacon);
+
+  const send = (event: Record<string, unknown>): void => {
     if (Math.random() > sampleRate) {
       return;
     }
-    if (!transportFetch) {
+    if (eventQueue.length >= safeMaxQueueSize) {
+      eventQueue.splice(0, eventQueue.length - safeMaxQueueSize + 1);
+    }
+    eventQueue.push(event);
+    if (eventQueue.length >= safeBatchSize) {
+      void flush();
       return;
     }
-    try {
-      await transportFetch(endpoint, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(event),
-      });
-    } catch {
-      // swallow networking errors intentionally
-    }
+    scheduleFlush();
   };
 
   const capture = (
@@ -103,14 +175,14 @@ export function initTrailboxMvp({
     message: string,
     payload: Record<string, unknown> = {}
   ): void => {
-    void send(
+    send(
       createEvent({
         type: type as (typeof EventType)[keyof typeof EventType],
         severity,
         message,
         payload,
         appName,
-      })
+      }) as unknown as Record<string, unknown>
     );
   };
 
@@ -623,4 +695,11 @@ function isLikelyBinaryContent(contentType: string): boolean {
 
 function isRequest(input: RequestInfo | URL): input is Request {
   return typeof Request !== 'undefined' && input instanceof Request;
+}
+
+function normalizePositiveInt(value: number, fallback: number, cap: number): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    return fallback;
+  }
+  return Math.min(Math.floor(value), cap);
 }

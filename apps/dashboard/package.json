@@ -4,6 +4,10 @@
   "private": false,
   "type": "module",
   "description": "Minimal dashboard for trailbox-mvp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lee101570/trailbox-mvp"
+  },
   "main": "dist/server.js",
   "publishConfig": {
     "access": "public"

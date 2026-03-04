@@ -4,6 +4,10 @@
   "private": false,
   "type": "module",
   "description": "CLI for trailbox-mvp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lee101570/trailbox-mvp"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "publishConfig": {

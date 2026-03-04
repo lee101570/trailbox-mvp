@@ -1,5 +1,5 @@
 {
-  "name": "@trailbox-mvp/agent",
+  "name": "trailbox-mvp-agent",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -17,6 +17,6 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@trailbox-mvp/storage": "0.1.0"
+    "trailbox-mvp-storage": "0.1.0"
   }
 }

@@ -1,4 +1,4 @@
-import { createEvent, EventType } from '@trailbox-mvp/protocol';
+import { createEvent, EventType } from 'trailbox-mvp-protocol';
 
 interface TrailboxOptions {
   endpoint?: string;

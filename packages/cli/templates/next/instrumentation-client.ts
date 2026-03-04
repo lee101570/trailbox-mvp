@@ -1,6 +1,6 @@
 'use client';
 
-import { initTrailboxMvp } from '@trailbox-mvp/sdk-core';
+import { initTrailboxMvp } from 'trailbox-mvp-sdk-core';
 
 initTrailboxMvp({
   endpoint: process.env.NEXT_PUBLIC_TRAILBOX_MVP_ENDPOINT || 'http://127.0.0.1:7465/ingest',
@@ -8,4 +8,3 @@ initTrailboxMvp({
   captureBodies: true,
   captureHeaders: true,
 });
-

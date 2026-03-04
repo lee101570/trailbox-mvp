@@ -155,7 +155,7 @@ function initCommand(): void {
 
   if (!runtime.nextConfigFile) {
     const nextConfigBody = [
-      `import withTrailboxMvp from '@trailbox-mvp/sdk-next/with-next';`,
+      `import withTrailboxMvp from 'trailbox-mvp-sdk-next/with-next';`,
       '',
       'const withTrailboxConfig = withTrailboxMvp({',
       `  appName: process.env.npm_package_name || '${escapeLiteral(config.projectName)}',`,
@@ -188,11 +188,11 @@ async function devCommand(): Promise<void> {
   const runtime = detectProjectRuntime(PROJECT_ROOT);
   const spawned: ChildProcess[] = [];
   const agentEntry = resolveRuntimeEntry(
-    '@trailbox-mvp/agent/dist/index.js',
+    'trailbox-mvp-agent/dist/index.js',
     join(ROOT_DIR, 'packages', 'agent', 'dist', 'index.js')
   );
   const dashboardEntry = resolveRuntimeEntry(
-    '@trailbox-mvp/dashboard/dist/server.js',
+    'trailbox-mvp-dashboard/dist/server.js',
     join(ROOT_DIR, 'apps', 'dashboard', 'dist', 'server.js')
   );
 
@@ -371,7 +371,7 @@ function writeNextWrapper(existingConfigPath: string, projectName: string): stri
   const wrapperPath = join(PROJECT_ROOT, wrapperFileName);
 
   const wrapperBody = [
-    `import withTrailboxMvp from '@trailbox-mvp/sdk-next/with-next';`,
+    `import withTrailboxMvp from 'trailbox-mvp-sdk-next/with-next';`,
     `import baseConfig from './${baseName}';`,
     '',
     'const withTrailboxConfig = withTrailboxMvp({',

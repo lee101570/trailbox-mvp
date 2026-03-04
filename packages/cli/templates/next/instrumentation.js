@@ -1,4 +1,4 @@
-import { initTrailboxMvp } from '@trailbox-mvp/sdk-core';
+import { initTrailboxMvp } from 'trailbox-mvp-sdk-core';
 
 export function register() {
   initTrailboxMvp({
@@ -6,4 +6,3 @@ export function register() {
     appName: process.env.npm_package_name || 'next-app',
   });
 }
-

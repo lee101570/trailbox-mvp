@@ -11,7 +11,7 @@ It provides:
 Install SDK packages in your Next.js project:
 
 ```bash
-npm install @trailbox-mvp/sdk-core @trailbox-mvp/sdk-next
+npm install trailbox-mvp-sdk-core trailbox-mvp-sdk-next
 ```
 
 You do not need to clone this repository to use the product.
@@ -50,7 +50,7 @@ Expected checks:
 
 ## Network tracing support
 
-`@trailbox-mvp/sdk-core` captures:
+`trailbox-mvp-sdk-core` captures:
 - request metadata (method, URL, status, duration)
 - request/response headers
 - request/response bodies for `fetch` and `XMLHttpRequest`
@@ -63,12 +63,12 @@ Safety defaults:
 ## Published packages
 
 - `trailbox-mvp` (CLI)
-- `@trailbox-mvp/sdk-core`
-- `@trailbox-mvp/sdk-next`
-- `@trailbox-mvp/protocol`
-- `@trailbox-mvp/storage`
-- `@trailbox-mvp/agent`
-- `@trailbox-mvp/dashboard`
+- `trailbox-mvp-sdk-core`
+- `trailbox-mvp-sdk-next`
+- `trailbox-mvp-protocol`
+- `trailbox-mvp-storage`
+- `trailbox-mvp-agent`
+- `trailbox-mvp-dashboard`
 
 ## For maintainers (repository development)
 

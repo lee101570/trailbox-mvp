@@ -1,5 +1,5 @@
 {
-  "name": "@trailbox-mvp/sdk-next",
+  "name": "trailbox-mvp-sdk-next",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -17,6 +17,6 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
-    "@trailbox-mvp/sdk-core": "0.1.0"
+    "trailbox-mvp-sdk-core": "0.1.0"
   }
 }

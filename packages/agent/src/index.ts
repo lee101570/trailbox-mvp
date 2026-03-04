@@ -1,6 +1,6 @@
 import * as http from 'node:http';
 import { IncomingMessage, ServerResponse } from 'node:http';
-import { EventStore } from '@trailbox-mvp/storage';
+import { EventStore } from 'trailbox-mvp-storage';
 
 const PORT = Number(process.env.TRAILBOX_MVP_AGENT_PORT ?? 7465);
 const DATA_DIR = process.env.TRAILBOX_MVP_DATA_DIR ?? '.trailbox-mvp';

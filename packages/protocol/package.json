@@ -1,5 +1,5 @@
 {
-  "name": "@trailbox-mvp/protocol",
+  "name": "trailbox-mvp-protocol",
   "version": "0.1.0",
   "private": false,
   "type": "module",

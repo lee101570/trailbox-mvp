@@ -1,5 +1,5 @@
 {
-  "name": "@trailbox-mvp/sdk-core",
+  "name": "trailbox-mvp-sdk-core",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -13,7 +13,7 @@
     "dist"
   ],
   "dependencies": {
-    "@trailbox-mvp/protocol": "0.1.0"
+    "trailbox-mvp-protocol": "0.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

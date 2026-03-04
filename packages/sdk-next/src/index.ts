@@ -1,4 +1,4 @@
-import { initTrailboxMvp } from '@trailbox-mvp/sdk-core';
+import { initTrailboxMvp } from 'trailbox-mvp-sdk-core';
 import { withTrailboxMvp } from './with-next.js';
 
 export interface TrailboxNextOptions {

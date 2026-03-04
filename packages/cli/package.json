@@ -1,5 +1,5 @@
 {
-  "name": "@trailbox-mvp/cli",
+  "name": "trailbox-mvp",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -14,8 +14,8 @@
     "templates"
   ],
   "dependencies": {
-    "@trailbox-mvp/agent": "0.1.0",
-    "@trailbox-mvp/dashboard": "0.1.0"
+    "trailbox-mvp-agent": "0.1.0",
+    "trailbox-mvp-dashboard": "0.1.0"
   },
   "bin": {
     "trailbox-mvp": "dist/index.js"
